@@ -25,6 +25,8 @@ lose = font1.render("YOU LOSE", True, (100, 0, 0))
 
 score = 0
 lost = 0
+max_lost = 3
+goal = 10
 
 # клас-батько для інших спрайтів
 class GameSprite(sprite.Sprite):
@@ -54,7 +56,7 @@ class Player(GameSprite):
         if keys[K_d] and self.rect.x < win_width - 80:
             self.rect.x += self.speed
     def fire(self):
-        bullet = Bullet(img_bullet, self.rect.centerx, self.rect.top, 20, 60, -15)
+        bullet = Bullet(img_bullet, self.rect.centerx-0.5, self.rect.top-0.5, 40, 50, -20)
         bullets.add(bullet)
 
 class Enemy (GameSprite):
@@ -89,6 +91,23 @@ for i in range(1, 6):
 
 bullets = sprite.Group()
 
+start_time = time.get_ticks()
+shots_fired = 0
+def restart_game():
+    global score, lost, finish, monsters, bullets, ship, start_time, shots_fired
+    score = 0
+    lost = 0
+    shots_fired = 0
+    start_time = time.get_ticks()
+    finish = False
+    ship = Player(img_hero, 5, win_height - 100, 80, 100, 10)
+    monsters = sprite.Group()
+    for i in range(1, 6):
+        monster = Enemy(img_enemy, randint(80, win_width - 80), - 40, 80, 50, randint(1, 5))
+        monsters.add(monster)
+    bullets = sprite.Group()
+
+
 finish = False
 run = True  # прапорець скидається кнопкою закриття вікна
 while run:
@@ -97,9 +116,13 @@ while run:
             run = False
 
         elif e.type == KEYDOWN:
-            if e.key == K_SPACE:
+            if e.key == K_SPACE and not finish:
                 fire_sound.play()
                 ship.fire()
+                shots_fired += 1
+
+            elif e.key == K_RETURN and finish:
+                restart_game()
     if not finish:
         window.blit(background, (0, 0))
         text = font2.render("Рахунок: " + str(score), 1, (255, 255, 255))
@@ -107,6 +130,14 @@ while run:
 
         text_lose = font2.render("Пропущено: " + str(lost), 1, (255, 255, 255))
         window.blit(text_lose, (10, 50))
+
+                # Обчислення таймера (у секундах)
+        elapsed_time = (time.get_ticks() - start_time) // 1000
+        timer_text = font2.render("Час: " + str(elapsed_time) + " с", 1, (255, 255, 255))
+        window.blit(timer_text, timer_text.get_rect(topright=(win_width - 10, 20)))
+        # Лічильник пострілів
+        shots_text = font2.render("Постріли: " + str(shots_fired), 1, (255, 255, 255))
+        window.blit(shots_text, shots_text.get_rect(topright=(win_width - 10, 50)))
 
         ship.update()
 
@@ -119,6 +150,24 @@ while run:
         ship.reset()
 
         monsters.draw(window)
+        collides = sprite.groupcollide(monsters, bullets, True, True)
+        for c in collides:
+            score = score + 1
+            monster = Enemy(img_enemy, randint(80, win_width - 80), - 40, 80, 50, randint(1, 5))
+            monsters.add(monster)
+
+        if sprite.spritecollide(ship, monsters, False) or lost >= max_lost:
+            finish = True
+            window.blit(lose, (200, 200))
+            retry_text = font2.render("Klick Enter", True, (255, 255, 255))
+            window.blit(retry_text, (100, 300))
+
+        if score >= goal:
+            finish = True
+            window.blit(win, (200, 200))
+            retry_text = font2.render("Klick Enter", True, (255, 255, 255))
+            window.blit(retry_text, (100,300))
+
 
         display.update()
     time.delay(50)
